@@ -1,11 +1,27 @@
-from fastapi import FastAPI
+﻿from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import compose_router
+from backend.app.routers import attendance_router
+import uvicorn
 
-app = FastAPI(title="Project 18: Orchestration API")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-app.include_router(compose_router.router)
+app = FastAPI(
+    title="Smart Face Attendance System API",
+    description="Computer vision facial embedding recognition, cosine similarity verification, and automated attendance registry.",
+    version="1.0.0"
+)
 
-@app.get("/")
-def read_root():
-    return {"message": "Project 18 Compose Orchestrator Backend is online!"}
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(attendance_router.router)
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "service": "smart-face-attendance", "cv_pipeline": "Normalized Cosine Embeddings"}
+
+if __name__ == "__main__":
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
