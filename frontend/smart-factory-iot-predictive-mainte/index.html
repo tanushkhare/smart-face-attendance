@@ -1,0 +1,105 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Factory IoT Predictive Maintenance & Telemetry</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="logo">⚡ Smart Factory IoT Predictive Maintenance</div>
+      <div class="badge">Live Microservice Active</div>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <section class="panel-left">
+      <h2>Data Ingestion & Controls</h2>
+      <p class="subtitle">MQTT sensor stream ingestion, vibration and thermal threshold analytics, and remaining useful life (RUL) estimation.</p>
+
+      <div class="input-group">
+        <label for="batchInput">Sampling Window / Telemetry Frames</label>
+        <select id="batchInput" class="text-input">
+          <option value="500">500 Records / Frame</option>
+          <option value="2500" selected>2,500 Records / Frame</option>
+          <option value="10000">10,000 Records / Frame</option>
+        </select>
+      </div>
+
+      <button class="btn primary-btn" onclick="executeProcess()">Execute Microservice Pipeline</button>
+
+      <div class="log-card">
+        <h4>Microservice Telemetry</h4>
+        <div id="logBox" class="terminal-log">System standing by for MQTT stream ingestion...</div>
+      </div>
+    </section>
+
+    <aside class="panel-right">
+      <h2>Pipeline Diagnostics</h2>
+
+      <div class="metric-row">
+        <div class="metric-card">
+          <span class="label">Health Index</span>
+          <span class="value" id="val1">--</span>
+        </div>
+        <div class="metric-card">
+          <span class="label">Est. Useful Life (RUL)</span>
+          <span class="value" id="val2" style="color:#34d399;">--</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Analysis & Synthesis</h3>
+        <ul id="resList">
+          <li>Awaiting pipeline trigger execution...</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    async function executeProcess() {
+      const batch = parseInt(document.getElementById('batchInput').value, 10);
+      const log = document.getElementById('logBox');
+
+      log.innerText = `[${new Date().toLocaleTimeString()}] Pipeline triggered.\n[${new Date().toLocaleTimeString()}] Ingesting sensor telemetry frame...\n[${new Date().toLocaleTimeString()}] Querying endpoint: /api/v1/iot/telemetry...`;
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/api/v1/iot/telemetry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ batch_size: batch, machine_id: "CNC-MILLING-UNIT-04" })
+        });
+
+        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
+        const data = await res.json();
+
+        document.getElementById('val1').innerText = `${data.overall_health_score}%`;
+        document.getElementById('val1').style.color = data.overall_health_score < 70 ? "#f87171" : "#38bdf8";
+
+        document.getElementById('val2').innerText = `${data.remaining_useful_life_hrs} hrs`;
+        document.getElementById('val2').style.color = "#34d399";
+
+        let analysisHtml = `
+          <li>Target Unit: <code>${data.machine_id}</code></li>
+          <li>Maintenance Directive: <code>${data.maintenance_status}</code></li>
+        `;
+
+        data.sensors.forEach(sensor => {
+          const color = sensor.status === 'OPTIMAL' ? '#34d399' : (sensor.status === 'WARNING' || sensor.status === 'ELEVATED' ? '#facc15' : '#f87171');
+          analysisHtml += `<li><strong>${sensor.sensor_name}:</strong> <code>${sensor.reading_value} ${sensor.unit}</code> (<span style="color:${color}; font-weight:600;">${sensor.status}</span>)</li>`;
+        });
+
+        document.getElementById('resList').innerHTML = analysisHtml;
+        log.innerText += `\n[${new Date().toLocaleTimeString()}] 200 OK: Execution complete. Telemetry parsed.`;
+
+      } catch (err) {
+        log.innerText += `\n[${new Date().toLocaleTimeString()}] Note: Backend offline (${err.message}).`;
+      }
+    }
+  </script>
+</body>
+</html>
