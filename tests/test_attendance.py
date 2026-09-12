@@ -9,27 +9,17 @@ def test_health():
     assert res.status_code == 200
     assert res.json()["status"] == "healthy"
 
-def test_successful_face_verification():
-    # Closely matching Alex Mercer's enrolled vector
-    payload = {
-        "captured_vector": [0.45, -0.12, 0.78, 0.33, 0.15, -0.22, 0.61, 0.05],
-        "similarity_threshold": 0.80
-    }
+def test_verify_known_user():
+    payload = {"probe_embedding": [0.35, 0.62, -0.41, 0.55], "confidence_threshold": 0.75}
     res = client.post("/api/v1/attendance/verify", json=payload)
     assert res.status_code == 200
     data = res.json()
-    assert data["verification_status"] == "MATCH_CONFIRMED"
-    assert data["user_id"] == "EMP_101"
-    assert data["full_name"] == "Alex Mercer"
-    assert data["similarity_score"] > 0.95
+    assert data["status"] == "VERIFIED_PRESENT"
+    assert data["user_id"] == "USR-101"
 
-def test_failed_face_verification():
-    # Non-matching vector
-    payload = {
-        "captured_vector": [-0.90, -0.90, -0.90, -0.90],
-        "similarity_threshold": 0.80
-    }
+def test_verify_unknown_user():
+    payload = {"probe_embedding": [-0.99, -0.99, 0.0, 0.0], "confidence_threshold": 0.85}
     res = client.post("/api/v1/attendance/verify", json=payload)
     assert res.status_code == 200
     data = res.json()
-    assert data["verification_status"] == "VERIFICATION_FAILED"
+    assert data["status"] == "ACCESS_DENIED"

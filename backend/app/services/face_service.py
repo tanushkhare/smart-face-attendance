@@ -1,58 +1,71 @@
-﻿import numpy as np
+﻿import math
+import uuid
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, List, Optional
 
-class FaceRecognitionEngine:
+class FaceAttendanceEngine:
     def __init__(self):
-        # Database of registered biometric templates
-        self.registered_users: Dict[str, Dict[str, Any]] = {}
-        self.attendance_logs: List[Dict[str, Any]] = []
-        
-        # Bootstrap default baseline registered engineer (16-d normalized vector template)
-        default_vector = [0.12, -0.23, 0.45, 0.11, -0.05, 0.33, 0.51, -0.19, 0.08, -0.41, 0.15, 0.22, -0.31, 0.09, 0.18, -0.27]
-        self.register_face("EMP_9041", "Alex Mercer", "AI Engineering", default_vector)
-
-    def register_face(self, emp_id: str, name: str, dept: str, vector: List[float]) -> bool:
-        vec = np.array(vector, dtype=np.float32)
-        norm = np.linalg.norm(vec)
-        norm_vector = (vec / norm) if norm > 0 else vec
-        
-        self.registered_users[emp_id] = {
-            "name": name,
-            "department": dept,
-            "embedding": norm_vector
-        }
-        return True
-
-    def verify_and_log(self, probe_vector: List[float], threshold: float = 0.70) -> Optional[Dict[str, Any]]:
-        probe = np.array(probe_vector, dtype=np.float32)
-        norm = np.linalg.norm(probe)
-        if norm > 0:
-            probe = probe / norm
-
-        best_match_id = None
-        best_score = -1.0
-
-        for emp_id, data in self.registered_users.items():
-            # Cosine similarity between normalized embedding vectors
-            score = float(np.dot(probe, data["embedding"]))
-            if score > best_score:
-                best_score = score
-                best_match_id = emp_id
-
-        if best_match_id and best_score >= threshold:
-            user = self.registered_users[best_match_id]
-            log_entry = {
-                "employee_id": best_match_id,
-                "employee_name": user["name"],
-                "department": user["department"],
-                "timestamp": datetime.now(timezone.utc),
-                "confidence": round(best_score, 4),
-                "verification_status": "VERIFIED_PRESENT"
+        # Seed pre-registered biometric embeddings (unit normalized)
+        self.registered_users = {
+            "USR-101": {
+                "name": "Sarah Connor",
+                "dept": "DevOps",
+                "embedding": [0.35, 0.62, -0.41, 0.55]
+            },
+            "USR-102": {
+                "name": "John Doe",
+                "dept": "Frontend",
+                "embedding": [-0.12, 0.81, 0.45, -0.32]
             }
-            self.attendance_logs.append(log_entry)
-            return log_entry
+        }
+        self.logs: List[Dict[str, Any]] = []
 
-        return None
+    def _cosine_similarity(self, v1: List[float], v2: List[float]) -> float:
+        min_len = min(len(v1), len(v2))
+        dot = sum(v1[i] * v2[i] for i in range(min_len))
+        mag1 = math.sqrt(sum(v1[i]**2 for i in range(min_len))) or 1e-9
+        mag2 = math.sqrt(sum(v2[i]**2 for i in range(min_len))) or 1e-9
+        return dot / (mag1 * mag2)
 
-face_engine = FaceRecognitionEngine()
+    def register_face(self, user_id: str, name: str, dept: str, embedding: Optional[List[float]] = None) -> Dict[str, Any]:
+        vector = embedding if embedding else [0.25, 0.55, 0.12, 0.78]
+        self.registered_users[user_id] = {
+            "name": name,
+            "dept": dept,
+            "embedding": vector
+        }
+        return {"user_id": user_id, "name": name, "status": "REGISTERED", "dimensions": len(vector)}
+
+    def verify_and_log(self, probe: List[float], threshold: float = 0.75) -> Dict[str, Any]:
+        best_match = None
+        highest_sim = -1.0
+
+        for uid, profile in self.registered_users.items():
+            sim = self._cosine_similarity(probe, profile["embedding"])
+            if sim > highest_sim:
+                highest_sim = sim
+                best_match = uid
+
+        if best_match and highest_sim >= threshold:
+            user = self.registered_users[best_match]
+            record = {
+                "record_id": f"REC-{uuid.uuid4().hex[:8].upper()}",
+                "user_id": best_match,
+                "full_name": user["name"],
+                "status": "VERIFIED_PRESENT",
+                "confidence": round(float(highest_sim), 4),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            self.logs.append(record)
+            return record
+
+        return {
+            "record_id": f"REC-{uuid.uuid4().hex[:8].upper()}",
+            "user_id": "UNKNOWN",
+            "full_name": "Unidentified Individual",
+            "status": "ACCESS_DENIED",
+            "confidence": round(float(highest_sim), 4),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+face_engine = FaceAttendanceEngine()

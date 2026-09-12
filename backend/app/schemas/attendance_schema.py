@@ -1,20 +1,21 @@
 ﻿from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from datetime import datetime
 
-class FaceEnrollmentRequest(BaseModel):
-    user_id: str = Field(..., description="Unique employee / student ID (e.g. EMP_101)")
+class FaceRegistrationRequest(BaseModel):
+    user_id: str = Field(..., min_length=3, description="Employee/Student unique ID")
     full_name: str = Field(..., min_length=2)
-    embedding_vector: List[float] = Field(..., min_length=4, description="Extracted facial landmark feature vector")
+    department: str = Field(default="Engineering")
+    mock_embedding: Optional[List[float]] = Field(default=None, description="128-d or 512-d feature vector")
 
 class FaceVerificationRequest(BaseModel):
-    captured_vector: List[float] = Field(..., min_length=4, description="Inbound facial embedding vector from camera")
-    similarity_threshold: Optional[float] = Field(default=0.75, ge=0.5, le=0.99)
+    probe_embedding: List[float] = Field(..., min_items=4, description="Extracted facial feature vector")
+    confidence_threshold: float = Field(default=0.75, ge=0.5, le=0.99)
 
 class AttendanceRecord(BaseModel):
-    log_id: str
+    record_id: str
     user_id: str
     full_name: str
-    similarity_score: float
-    verification_status: str
+    status: str
+    confidence: float
     timestamp: str

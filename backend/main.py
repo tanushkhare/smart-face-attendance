@@ -4,8 +4,8 @@ from backend.app.routers import attendance_router
 import uvicorn
 
 app = FastAPI(
-    title="Smart Facial Recognition Attendance API",
-    description="Vector embedding extraction, cosine similarity matching, and attendance auditing.",
+    title="Biometric Face Attendance Verification API",
+    description="Vector cosine similarity matching and attendance auditing service.",
     version="1.0.0"
 )
 
@@ -20,7 +20,7 @@ app.add_middleware(
 app.include_router(attendance_router.router)
 
 @app.get("/health")
-async def health_check():
+async def health():
     return {"status": "healthy", "service": "smart-face-attendance"}
 
 if __name__ == "__main__":
